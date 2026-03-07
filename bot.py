@@ -258,4 +258,4 @@ while True:
 
         start_time = datetime.datetime.now()
 
-    time.sleep(60)
+    time.sleep(150)
