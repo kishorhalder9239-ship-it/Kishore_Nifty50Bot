@@ -1,6 +1,5 @@
 import requests
 import time
-import datetime
 
 BOT_TOKEN = "8739303828:AAG9zPZmjEmKv5SEbA95rFHzvtZsHNiNLUo"
 CHAT_ID = "1780972347"
@@ -9,40 +8,34 @@ TP_PERCENT = 0.25
 SL_PERCENT = 0.15
 
 symbols = [
+
 "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
-"ADAUSDT","DOGEUSDT","TRXUSDT","AVAXUSDT","DOTUSDT",
-"MATICUSDT","LINKUSDT","LTCUSDT","ATOMUSDT","UNIUSDT",
-"ETCUSDT","FILUSDT","APTUSDT","ARBUSDT","OPUSDT",
-"NEARUSDT","SANDUSDT","MANAUSDT","AAVEUSDT","ALGOUSDT",
-"FTMUSDT","EOSUSDT","XTZUSDT","EGLDUSDT","THETAUSDT",
-"AXSUSDT","FLOWUSDT","CHZUSDT","GALAUSDT","DYDXUSDT",
-"CRVUSDT","SNXUSDT","1INCHUSDT","KAVAUSDT","ROSEUSDT",
-"LDOUSDT","GMTUSDT","IMXUSDT","APEUSDT","RUNEUSDT",
-"KSMUSDT","ZILUSDT","ENSUSDT","COMPUSDT","SUSHIUSDT",
-"BATUSDT","CELOUSDT","QTUMUSDT","ANKRUSDT","IOTAUSDT",
-"RVNUSDT","ICXUSDT","HOTUSDT","ONTUSDT","STXUSDT"
+"ADAUSDT","DOGEUSDT","AVAXUSDT","TRXUSDT","DOTUSDT",
+"MATICUSDT","LTCUSDT","BCHUSDT","LINKUSDT","XLMUSDT",
+"ATOMUSDT","ETCUSDT","FILUSDT","APTUSDT","NEARUSDT",
+"HBARUSDT","VETUSDT","OPUSDT","ARBUSDT","INJUSDT",
+"SUIUSDT","SEIUSDT","AAVEUSDT","GRTUSDT","ALGOUSDT",
+"SANDUSDT","MANAUSDT","AXSUSDT","EGLDUSDT","THETAUSDT",
+"XTZUSDT","FLOWUSDT","KAVAUSDT","CHZUSDT","FTMUSDT",
+"RNDRUSDT","DYDXUSDT","GMXUSDT","BLURUSDT","COMPUSDT",
+"ZECUSDT","KSMUSDT","SNXUSDT","CRVUSDT","LDOUSDT",
+"RUNEUSDT","STXUSDT","MINAUSDT","PEPEUSDT","SHIBUSDT",
+"1000BONKUSDT","FLOKIUSDT","WLDUSDT","PYTHUSDT","JUPUSDT"
+
 ]
 
 last_signal = {}
 active_trades = {}
-
 wins = 0
 losses = 0
-signals_today = 0
-
-start_time = datetime.datetime.now()
 
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    data = {
-        "chat_id": CHAT_ID,
-        "text": text
-    }
+    data = {"chat_id": CHAT_ID, "text": text}
 
     try:
-        requests.post(url, data=data)
+        requests.post(url, data=data, timeout=10)
     except:
         pass
 
@@ -58,7 +51,7 @@ def get_klines(symbol):
     }
 
     try:
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=params, timeout=10)
         return r.json()
     except:
         return []
@@ -66,7 +59,7 @@ def get_klines(symbol):
 
 def check_setup(symbol):
 
-    global signals_today
+    global last_signal
 
     data = get_klines(symbol)
 
@@ -85,47 +78,56 @@ def check_setup(symbol):
 
     avg_body = sum(abs(float(x[4]) - float(x[1])) for x in data) / len(data)
 
-    print(symbol, "scanned")
-
     if (
-        body1 > avg_body * 1.2 and
-        body3 > avg_body * 1.2 and
+
+        body1 > avg_body * 1.5 and
+        body3 > avg_body * 1.5 and
         body2 < body1 and
         body2 < body3 and
-        body2 > avg_body * 0.1
+        body2 > avg_body * 0.2
+
     ):
 
-        entry = cl3
+        candle_time = c3[0]
+
+        if symbol in last_signal and last_signal[symbol] == candle_time:
+            return
+
+        last_signal[symbol] = candle_time
+
+        entry = float(cl3)
 
         if cl3 > o3:
+
             direction = "BUY"
             tp = entry * (1 + TP_PERCENT / 100)
             sl = entry * (1 - SL_PERCENT / 100)
+
         else:
+
             direction = "SELL"
             tp = entry * (1 - TP_PERCENT / 100)
             sl = entry * (1 + SL_PERCENT / 100)
 
         active_trades[symbol] = {
+
             "direction": direction,
             "entry": entry,
             "tp": tp,
             "sl": sl
+
         }
 
-        signals_today += 1
-
-        print(symbol, "PATTERN FOUND")
-
-        send_message(f"""🚀 TEST SIGNAL
+        send_message(f"""🚀 SIGNAL
 
 Symbol: {symbol}
 Type: {direction}
 Timeframe: 5m
 
-Entry: {entry:.8f}
-TP: {tp:.8f}
-SL: {sl:.8f}
+Entry: {entry}
+TP: {tp}
+SL: {sl}
+
 """)
 
 
@@ -137,12 +139,19 @@ def check_results():
 
         try:
 
-            price = float(requests.get(
-                "https://api.binance.com/api/v3/ticker/price",
-                params={"symbol": symbol}
-            ).json()["price"])
+            price = float(
+
+                requests.get(
+                    "https://api.binance.com/api/v3/ticker/price",
+                    params={"symbol": symbol},
+                    timeout=10
+
+                ).json()["price"]
+
+            )
 
         except:
+
             continue
 
         trade = active_trades[symbol]
@@ -153,13 +162,17 @@ def check_results():
 
                 wins += 1
 
-                send_message(f"""✅ TP HIT
+                send_message(
 
-Symbol: {symbol}
+f"""✅ TP HIT
+
+{symbol}
 
 Wins: {wins}
 Losses: {losses}
-""")
+"""
+
+)
 
                 del active_trades[symbol]
 
@@ -167,13 +180,17 @@ Losses: {losses}
 
                 losses += 1
 
-                send_message(f"""❌ SL HIT
+                send_message(
 
-Symbol: {symbol}
+f"""❌ SL HIT
+
+{symbol}
 
 Wins: {wins}
 Losses: {losses}
-""")
+"""
+
+)
 
                 del active_trades[symbol]
 
@@ -183,13 +200,17 @@ Losses: {losses}
 
                 wins += 1
 
-                send_message(f"""✅ TP HIT
+                send_message(
 
-Symbol: {symbol}
+f"""✅ TP HIT
+
+{symbol}
 
 Wins: {wins}
 Losses: {losses}
-""")
+"""
+
+)
 
                 del active_trades[symbol]
 
@@ -197,65 +218,38 @@ Losses: {losses}
 
                 losses += 1
 
-                send_message(f"""❌ SL HIT
+                send_message(
 
-Symbol: {symbol}
+f"""❌ SL HIT
+
+{symbol}
 
 Wins: {wins}
 Losses: {losses}
-""")
+"""
+
+)
 
                 del active_trades[symbol]
 
 
-def send_daily_report():
-
-    global wins, losses, signals_today
-
-    total = wins + losses
-
-    if total > 0:
-        winrate = (wins / total) * 100
-    else:
-        winrate = 0
-
-    profit = (wins * 0.25) - (losses * 0.15)
-
-    send_message(f"""📊 DAILY REPORT (24H)
-
-Signals: {signals_today}
-Wins: {wins}
-Losses: {losses}
-
-Winrate: {winrate:.2f} %
-
-Estimated Profit: {profit:.2f} %
-
-#BotPerformance
-""")
-
-
-print("🔥 BOT STARTED (TEST MODE)")
+print("🔥 BOT STARTED (RAILWAY MODE)")
 
 
 while True:
 
+    print("🔄 BOT LOOP RUNNING...")
+
     for symbol in symbols:
+
+        print(f"Scanning {symbol}")
 
         check_setup(symbol)
 
+        time.sleep(1)
+
     check_results()
 
-    now = datetime.datetime.now()
-
-    if (now - start_time).total_seconds() >= 86400:
-
-        send_daily_report()
-
-        wins = 0
-        losses = 0
-        signals_today = 0
-
-        start_time = datetime.datetime.now()
+    print("⏳ Waiting next scan")
 
     time.sleep(150)
