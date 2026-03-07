@@ -8,11 +8,12 @@ TP_PERCENT = 0.25
 SL_PERCENT = 0.15
 
 symbols = [
-    "BTCUSDT",
-    "ETHUSDT",
-    "BNBUSDT",
-    "SOLUSDT",
-    "XRPUSDT"
+"BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
+"ADAUSDT","DOGEUSDT","TRXUSDT","AVAXUSDT","DOTUSDT",
+"MATICUSDT","LINKUSDT","LTCUSDT","ATOMUSDT","UNIUSDT",
+"ETCUSDT","FILUSDT","APTUSDT","ARBUSDT","OPUSDT",
+"NEARUSDT","SANDUSDT","MANAUSDT","AAVEUSDT","ALGOUSDT",
+"FTMUSDT","EOSUSDT","XTZUSDT","EGLDUSDT","THETAUSDT"
 ]
 
 last_signal = {}
@@ -26,9 +27,9 @@ def send_message(text):
     data = {"chat_id": CHAT_ID, "text": text}
 
     try:
-        requests.post(url, data=data, timeout=10)
-    except Exception as e:
-        print("Telegram error:", e)
+        requests.post(url, data=data)
+    except:
+        pass
 
 
 def get_klines(symbol):
@@ -36,10 +37,9 @@ def get_klines(symbol):
     params = {"symbol": symbol, "interval": "5m", "limit": 50}
 
     try:
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(url, params=params)
         return r.json()
-    except Exception as e:
-        print("Kline error:", e)
+    except:
         return []
 
 
@@ -48,56 +48,55 @@ def check_setup(symbol):
 
     data = get_klines(symbol)
 
-    if not data or len(data) < 20:
+    if len(data) < 20:
         return
 
-    try:
-        c1, c2, c3 = data[-3], data[-2], data[-1]
+    c1, c2, c3 = data[-3], data[-2], data[-1]
 
-        o1, cl1 = float(c1[1]), float(c1[4])
-        o2, cl2 = float(c2[1]), float(c2[4])
-        o3, cl3 = float(c3[1]), float(c3[4])
+    o1, cl1 = float(c1[1]), float(c1[4])
+    o2, cl2 = float(c2[1]), float(c2[4])
+    o3, cl3 = float(c3[1]), float(c3[4])
 
-        body1 = abs(cl1 - o1)
-        body2 = abs(cl2 - o2)
-        body3 = abs(cl3 - o3)
+    body1 = abs(cl1 - o1)
+    body2 = abs(cl2 - o2)
+    body3 = abs(cl3 - o3)
 
-        avg_body = sum(abs(float(x[4]) - float(x[1])) for x in data) / len(data)
+    avg_body = sum(abs(float(x[4]) - float(x[1])) for x in data) / len(data)
 
-        if (
-            body1 > avg_body * 1.5 and
-            body3 > avg_body * 1.5 and
-            body2 < body1 and
-            body2 < body3 and
-            body2 > avg_body * 0.2
-        ):
+    if (
+        body1 > avg_body * 1.5 and
+        body3 > avg_body * 1.5 and
+        body2 < body1 and
+        body2 < body3 and
+        body2 > avg_body * 0.2
+    ):
 
-            candle_time = c3[0]
+        candle_time = c3[0]
 
-            if symbol in last_signal and last_signal[symbol] == candle_time:
-                return
+        if symbol in last_signal and last_signal[symbol] == candle_time:
+            return
 
-            last_signal[symbol] = candle_time
+        last_signal[symbol] = candle_time
 
-            entry = float(cl3)
+        entry = cl3
 
-            if cl3 > o3:
-                direction = "BUY"
-                tp = entry * (1 + TP_PERCENT / 100)
-                sl = entry * (1 - SL_PERCENT / 100)
-            else:
-                direction = "SELL"
-                tp = entry * (1 - TP_PERCENT / 100)
-                sl = entry * (1 + SL_PERCENT / 100)
+        if cl3 > o3:
+            direction = "BUY"
+            tp = entry * (1 + TP_PERCENT / 100)
+            sl = entry * (1 - SL_PERCENT / 100)
+        else:
+            direction = "SELL"
+            tp = entry * (1 - TP_PERCENT / 100)
+            sl = entry * (1 + SL_PERCENT / 100)
 
-            active_trades[symbol] = {
-                "direction": direction,
-                "entry": entry,
-                "tp": tp,
-                "sl": sl
-            }
+        active_trades[symbol] = {
+            "direction": direction,
+            "entry": entry,
+            "tp": tp,
+            "sl": sl
+        }
 
-            send_message(f"""🚀 REAL MODE SIGNAL
+        send_message(f"""🚀 REAL MODE SIGNAL
 
 Symbol: {symbol}
 Type: {direction}
@@ -106,9 +105,6 @@ Entry: {entry}
 TP: {tp}
 SL: {sl}
 """)
-
-    except Exception as e:
-        print("Setup error:", e)
 
 
 def check_results():
@@ -119,8 +115,7 @@ def check_results():
         try:
             price = float(requests.get(
                 "https://api.binance.com/api/v3/ticker/price",
-                params={"symbol": symbol},
-                timeout=10
+                params={"symbol": symbol}
             ).json()["price"])
         except:
             continue
@@ -156,15 +151,9 @@ print("🔥 REAL STRATEGY MODE STARTED (5m)")
 
 while True:
 
-    try:
+    for symbol in symbols:
+        check_setup(symbol)
 
-        for symbol in symbols:
-            check_setup(symbol)
+    check_results()
 
-        check_results()
-
-        time.sleep(120)
-
-    except Exception as e:
-        print("Main loop error:", e)
-        time.sleep(10)
+    time.sleep(300)
