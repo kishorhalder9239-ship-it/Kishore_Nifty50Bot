@@ -84,7 +84,7 @@ def check_setup(symbol):
         body3 > avg_body * 1.2 and
         body2 < body1 and
         body2 < body3 and
-        body2 > avg_body * 0.2
+        body2 > avg_body * 0.1
 
     ):
 
