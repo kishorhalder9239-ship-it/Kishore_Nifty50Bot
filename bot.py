@@ -234,6 +234,7 @@ Losses: {losses}
 
 
 print("🔥 BOT STARTED (RAILWAY MODE)")
+send_message("✅ BOT TEST MESSAGE - SERVER ONLINE")
 
 
 while True:
