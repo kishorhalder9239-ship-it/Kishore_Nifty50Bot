@@ -80,8 +80,8 @@ def check_setup(symbol):
 
     if (
 
-        body1 > avg_body * 1.5 and
-        body3 > avg_body * 1.5 and
+        body1 > avg_body * 1.2 and
+        body3 > avg_body * 1.2 and
         body2 < body1 and
         body2 < body3 and
         body2 > avg_body * 0.2
