@@ -5,9 +5,6 @@ import datetime
 BOT_TOKEN = "8739303828:AAG9zPZmjEmKv5SEbA95rFHzvtZsHNiNLUo"
 CHAT_ID = "1780972347"
 
-TP_PERCENT = 0.25
-SL_PERCENT = 0.15
-
 symbols = [
 "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
 "ADAUSDT","DOGEUSDT","AVAXUSDT","TRXUSDT","DOTUSDT",
@@ -24,8 +21,9 @@ symbols = [
 ]
 
 active_trades = {}
-wins = 0
-losses = 0
+
+TP_PERCENT = 0.25
+SL_PERCENT = 0.15
 
 
 def send_message(text):
@@ -81,24 +79,26 @@ def check_pattern(symbol,data,size,timeframe):
     o2,h2,l2,cl2 = c2
     o3,h3,l3,cl3 = c3
 
-    body1 = abs(cl1-o1)
-    body2 = abs(cl2-o2)
-    body3 = abs(cl3-o3)
+    body1 = abs(cl1 - o1)
+    body2 = abs(cl2 - o2)
+    body3 = abs(cl3 - o3)
 
     if body2 < body1 and body2 < body3:
 
+        # BUY pattern
         if cl1 > o1 and cl3 > o3:
-            direction="BUY"
+            direction = "BUY"
 
+        # SELL pattern
         elif cl1 < o1 and cl3 < o3:
-            direction="SELL"
+            direction = "SELL"
 
         else:
             return
 
         entry = cl3
 
-        if direction=="BUY":
+        if direction == "BUY":
 
             tp = entry*(1+TP_PERCENT/100)
             sl = entry*(1-SL_PERCENT/100)
@@ -147,56 +147,6 @@ def scan_market():
         time.sleep(0.5)
 
 
-def check_results():
-
-    global wins,losses
-
-    for symbol in list(active_trades.keys()):
-
-        try:
-
-            price = float(
-                requests.get(
-                    "https://api.binance.com/api/v3/ticker/price",
-                    params={"symbol":symbol},
-                    timeout=10
-                ).json()["price"]
-            )
-
-        except:
-            continue
-
-        trade = active_trades[symbol]
-
-        if trade["direction"]=="BUY":
-
-            if price>=trade["tp"]:
-
-                wins+=1
-                send_message(f"✅ TP HIT {symbol}\nWins:{wins} Loss:{losses}")
-                del active_trades[symbol]
-
-            elif price<=trade["sl"]:
-
-                losses+=1
-                send_message(f"❌ SL HIT {symbol}\nWins:{wins} Loss:{losses}")
-                del active_trades[symbol]
-
-        else:
-
-            if price<=trade["tp"]:
-
-                wins+=1
-                send_message(f"✅ TP HIT {symbol}\nWins:{wins} Loss:{losses}")
-                del active_trades[symbol]
-
-            elif price>=trade["sl"]:
-
-                losses+=1
-                send_message(f"❌ SL HIT {symbol}\nWins:{wins} Loss:{losses}")
-                del active_trades[symbol]
-
-
 def wait_for_next_candle():
 
     now = datetime.datetime.utcnow()
@@ -205,30 +155,20 @@ def wait_for_next_candle():
 
     wait = 300 - (seconds % 300)
 
-    print(f"⏳ Waiting {wait} sec for next 5m candle")
+    print(f"Waiting {wait} sec for next candle")
 
     time.sleep(wait)
 
 
-print("🔥 BOT STARTED")
+print("BOT STARTED")
 
 
 while True:
 
-    try:
+    wait_for_next_candle()
 
-        wait_for_next_candle()
+    print("Scanning market")
 
-        print("📊 Scanning market...")
+    scan_market()
 
-        scan_market()
-
-        check_results()
-
-        print("✅ Scan finished")
-
-    except Exception as e:
-
-        print("❌ ERROR:",e)
-
-        time.sleep(10)
+    print("Scan finished")
