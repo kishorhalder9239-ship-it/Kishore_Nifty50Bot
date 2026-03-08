@@ -5,8 +5,7 @@ BOT_TOKEN = "8739303828:AAG9zPZmjEmKv5SEbA95rFHzvtZsHNiNLUo"
 CHAT_ID = "1780972347"
 
 symbols = [
-"BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
-"ADAUSDT","DOGEUSDT","AVAXUSDT","TRXUSDT","DOTUSDT"
+"BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"
 ]
 
 # ---------- TELEGRAM ----------
@@ -29,7 +28,7 @@ def get_klines(symbol):
 
     params={
         "symbol":symbol,
-        "interval":"5m",
+        "interval":"1m",
         "limit":100
     }
 
@@ -85,7 +84,7 @@ def calculate_rsi(prices,period=14):
     return rsi
 
 
-# ---------- SIGNAL LOGIC ----------
+# ---------- SIGNAL ----------
 
 def check_signal(symbol):
 
@@ -117,8 +116,7 @@ def check_signal(symbol):
     low_mother=float(mother[3])
 
 
-    # ---------- BULLISH ENGULFING ----------
-
+    # Bullish Engulfing
     if c1<o1 and c2>o2 and c2>o1 and o2<c1:
 
         if c2>ema50 and rsi>55:
@@ -129,13 +127,10 @@ def check_signal(symbol):
 Symbol: {symbol}
 Pattern: Bullish Engulfing
 Price: {c2}
-EMA50: {round(ema50,2)}
-RSI: {round(rsi,2)}
 """)
 
 
-    # ---------- BEARISH ENGULFING ----------
-
+    # Bearish Engulfing
     if c1>o1 and c2<o2 and c2<o1 and o2>c1:
 
         if c2<ema50 and rsi<45:
@@ -146,16 +141,12 @@ RSI: {round(rsi,2)}
 Symbol: {symbol}
 Pattern: Bearish Engulfing
 Price: {c2}
-EMA50: {round(ema50,2)}
-RSI: {round(rsi,2)}
 """)
 
 
-    # ---------- INSIDE BAR ----------
-
+    # Inside Bar
     if high_prev < high_mother and low_prev > low_mother:
 
-        # BUY breakout
         if c2>high_mother and c2>ema50 and rsi>55:
 
             send_message(f"""
@@ -167,7 +158,6 @@ Price: {c2}
 """)
 
 
-        # SELL breakout
         if c2<low_mother and c2<ema50 and rsi<45:
 
             send_message(f"""
@@ -178,8 +168,6 @@ Pattern: Inside Bar Breakout
 Price: {c2}
 """)
 
-
-# ---------- MAIN LOOP ----------
 
 print("BOT STARTED")
 
@@ -198,10 +186,10 @@ while True:
 
         print("Waiting next scan")
 
-        time.sleep(300)
+        time.sleep(60)
 
     except Exception as e:
 
-        print("Main loop error:",e)
+        print("Error:",e)
 
         time.sleep(10)
