@@ -42,7 +42,7 @@ def get_klines(symbol):
     params = {
         "symbol":symbol,
         "interval":"5m",
-        "limit":120
+        "limit":60
     }
 
     try:
@@ -136,7 +136,7 @@ while True:
 
         scan_symbol(symbol)
 
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     print("Waiting next scan")
 
