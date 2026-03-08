@@ -8,7 +8,6 @@ TP_PERCENT = 0.25
 SL_PERCENT = 0.15
 
 symbols = [
-
 "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
 "ADAUSDT","DOGEUSDT","AVAXUSDT","TRXUSDT","DOTUSDT",
 "MATICUSDT","LTCUSDT","BCHUSDT","LINKUSDT","XLMUSDT",
@@ -21,7 +20,6 @@ symbols = [
 "ZECUSDT","KSMUSDT","SNXUSDT","CRVUSDT","LDOUSDT",
 "RUNEUSDT","STXUSDT","MINAUSDT","PEPEUSDT","SHIBUSDT",
 "1000BONKUSDT","FLOKIUSDT","WLDUSDT","PYTHUSDT","JUPUSDT"
-
 ]
 
 last_signal = {}
@@ -66,7 +64,8 @@ def check_setup(symbol):
     if len(data) < 20:
         return
 
-    c1, c2, c3 = data[-3], data[-2], data[-1]
+    # closed candles
+    c1, c2, c3 = data[-4], data[-3], data[-2]
 
     o1, cl1 = float(c1[1]), float(c1[4])
     o2, cl2 = float(c2[1]), float(c2[4])
@@ -76,46 +75,44 @@ def check_setup(symbol):
     body2 = abs(cl2 - o2)
     body3 = abs(cl3 - o3)
 
-    avg_body = sum(abs(float(x[4]) - float(x[1])) for x in data) / len(data)
+    candle_time = c3[0]
 
-    if (
+    if symbol in last_signal and last_signal[symbol] == candle_time:
+        return
 
-        body1 > avg_body * 1.2 and
-        body3 > avg_body * 1.2 and
-        body2 < body1 and
-        body2 < body3 and
-        body2 > avg_body * 0.1
+    # core strategy
+    if body2 < body1 and body2 < body3:
 
-    ):
+        if cl1 > o1 and cl3 > o3:
 
-        candle_time = c3[0]
+            direction = "BUY"
 
-        if symbol in last_signal and last_signal[symbol] == candle_time:
+        elif cl1 < o1 and cl3 < o3:
+
+            direction = "SELL"
+
+        else:
             return
 
         last_signal[symbol] = candle_time
 
         entry = float(cl3)
 
-        if cl3 > o3:
+        if direction == "BUY":
 
-            direction = "BUY"
             tp = entry * (1 + TP_PERCENT / 100)
             sl = entry * (1 - SL_PERCENT / 100)
 
         else:
 
-            direction = "SELL"
             tp = entry * (1 - TP_PERCENT / 100)
             sl = entry * (1 + SL_PERCENT / 100)
 
         active_trades[symbol] = {
-
             "direction": direction,
             "entry": entry,
             "tp": tp,
             "sl": sl
-
         }
 
         send_message(f"""🚀 SIGNAL
@@ -127,7 +124,6 @@ Timeframe: 5m
 Entry: {entry}
 TP: {tp}
 SL: {sl}
-
 """)
 
 
@@ -138,20 +134,14 @@ def check_results():
     for symbol in list(active_trades.keys()):
 
         try:
-
             price = float(
-
                 requests.get(
                     "https://api.binance.com/api/v3/ticker/price",
                     params={"symbol": symbol},
                     timeout=10
-
                 ).json()["price"]
-
             )
-
         except:
-
             continue
 
         trade = active_trades[symbol]
@@ -163,7 +153,6 @@ def check_results():
                 wins += 1
 
                 send_message(
-
 f"""✅ TP HIT
 
 {symbol}
@@ -171,7 +160,6 @@ f"""✅ TP HIT
 Wins: {wins}
 Losses: {losses}
 """
-
 )
 
                 del active_trades[symbol]
@@ -181,7 +169,6 @@ Losses: {losses}
                 losses += 1
 
                 send_message(
-
 f"""❌ SL HIT
 
 {symbol}
@@ -189,7 +176,6 @@ f"""❌ SL HIT
 Wins: {wins}
 Losses: {losses}
 """
-
 )
 
                 del active_trades[symbol]
@@ -201,7 +187,6 @@ Losses: {losses}
                 wins += 1
 
                 send_message(
-
 f"""✅ TP HIT
 
 {symbol}
@@ -209,7 +194,6 @@ f"""✅ TP HIT
 Wins: {wins}
 Losses: {losses}
 """
-
 )
 
                 del active_trades[symbol]
@@ -219,7 +203,6 @@ Losses: {losses}
                 losses += 1
 
                 send_message(
-
 f"""❌ SL HIT
 
 {symbol}
@@ -227,19 +210,17 @@ f"""❌ SL HIT
 Wins: {wins}
 Losses: {losses}
 """
-
 )
 
                 del active_trades[symbol]
 
 
-print("🔥 BOT STARTED (RAILWAY MODE)")
-send_message("✅ BOT TEST MESSAGE - SERVER ONLINE")
+print("🔥 BOT STARTED (BIG-SMALL-BIG STRATEGY)")
 
 
 while True:
 
-    print("🔄 BOT LOOP RUNNING...")
+    print("🔄 BOT LOOP RUNNING")
 
     for symbol in symbols:
 
