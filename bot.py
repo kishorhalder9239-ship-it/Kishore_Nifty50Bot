@@ -7,67 +7,49 @@ CHAT_ID = "1780972347"
 symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"]
 
 def send(msg):
-
-    url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    try:
-        requests.post(url,data={"chat_id":CHAT_ID,"text":msg})
-    except:
-        pass
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url,data={"chat_id":CHAT_ID,"text":msg})
 
 
-def get_candles(symbol):
+def get_candle(symbol):
 
     url="https://api.binance.com/api/v3/klines"
 
     params={
         "symbol":symbol,
         "interval":"1m",
-        "limit":50
+        "limit":2
     }
 
     r=requests.get(url,params=params)
 
     data=r.json()
 
-    closes=[float(x[4]) for x in data]
-
-    return closes
-
-
-def ema(data,period):
-
-    k=2/(period+1)
-
-    ema_val=data[0]
-
-    for price in data:
-
-        ema_val=price*k+ema_val*(1-k)
-
-    return ema_val
+    return data
 
 
 def check(symbol):
 
-    closes=get_candles(symbol)
+    data=get_candle(symbol)
 
-    ema9=ema(closes[-9:],9)
+    if not isinstance(data,list):
+        return
 
-    ema21=ema(closes[-21:],21)
+    candle=data[-2]
 
-    price=closes[-1]
+    open_price=float(candle[1])
+    close_price=float(candle[4])
 
-    if ema9>ema21:
+    if close_price>open_price:
 
-        send(f"BUY SIGNAL {symbol} price:{price}")
+        send(f"BUY SIGNAL {symbol}")
 
-    elif ema9<ema21:
+    else:
 
-        send(f"SELL SIGNAL {symbol} price:{price}")
+        send(f"SELL SIGNAL {symbol}")
 
 
-print("BOT RUNNING")
+print("BOT STARTED")
 
 while True:
 
@@ -79,4 +61,4 @@ while True:
 
         time.sleep(1)
 
-    time.sleep(60)
+    time.sleep(30)
