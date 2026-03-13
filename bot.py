@@ -1,43 +1,29 @@
 import requests
 import time
 
-BOT_TOKEN = "8739303828:AAG9zPZmjEmKv5SEbA95rFHzvtZsHNiNLUo"
-CHAT_ID = "1780972347"
-
 symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"]
 
-def send_message(text):
-
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": text
-    })
-
-
 def get_klines(symbol):
-
     url = "https://api.binance.com/api/v3/klines"
-
     params = {
         "symbol": symbol,
         "interval": "1m",
-        "limit": 5
+        "limit": 6
     }
-
-    r = requests.get(url, params=params)
-
-    return r.json()
-
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        return r.json()
+    except:
+        return []
 
 def check_pattern(symbol):
 
     data = get_klines(symbol)
 
-    if len(data) < 5:
+    if len(data) < 6:
         return
 
+    # last CLOSED candles
     c1 = data[-4]
     c2 = data[-3]
     c3 = data[-2]
@@ -54,29 +40,24 @@ def check_pattern(symbol):
     body1 = abs(cl1-o1)
     body2 = abs(cl2-o2)
 
-    # big → small → same direction
+    print(symbol,"b1:",body1,"b2:",body2)
 
-    if body2 < body1 * 0.5:
+    # big → small → same direction
+    if body2 < body1:
 
         if cl1 > o1 and cl3 > o3:
-
-            send_message(f"BUY SIGNAL {symbol}")
+            print("BUY PATTERN FOUND",symbol)
 
         elif cl1 < o1 and cl3 < o3:
-
-            send_message(f"SELL SIGNAL {symbol}")
+            print("SELL PATTERN FOUND",symbol)
 
 
 print("BOT RUNNING")
 
 while True:
 
-    for symbol in symbols:
+    for s in symbols:
+        check_pattern(s)
+        time.sleep(1)
 
-        print("checking", symbol)
-
-        check_pattern(symbol)
-
-        time.sleep(2)
-
-    time.sleep(30)
+    time.sleep(20)
