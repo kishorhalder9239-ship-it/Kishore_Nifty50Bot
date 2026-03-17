@@ -7,7 +7,6 @@ CHAT_ID = "1780972347"
 TP_PERCENT = 0.25
 SL_PERCENT = 0.15
 
-# 🔥 START SMALL (10 coins)
 symbols = [
 "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
 "ADAUSDT","DOGEUSDT","AVAXUSDT","TRXUSDT","DOTUSDT"
@@ -20,28 +19,22 @@ losses = 0
 
 
 def send_message(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": text}
-
     try:
-        requests.post(url, data=data, timeout=10)
-    except:
-        pass
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        requests.post(url, data={"chat_id": CHAT_ID, "text": text})
+    except Exception as e:
+        print("Telegram Error:", e)
 
 
 def get_klines(symbol):
     url = "https://api.binance.com/api/v3/klines"
-
-    params = {
-        "symbol": symbol,
-        "interval": "5m",
-        "limit": 50
-    }
+    params = {"symbol": symbol, "interval": "5m", "limit": 50}
 
     try:
         r = requests.get(url, params=params, timeout=10)
         return r.json()
-    except:
+    except Exception as e:
+        print("API Error:", e)
         return []
 
 
@@ -54,7 +47,7 @@ def check_setup(symbol):
     if len(data) < 20:
         return
 
-    # ✅ closed candles only
+    # ✅ EXACT CLOSED CANDLES
     c1, c2, c3 = data[-4], data[-3], data[-2]
 
     o1, cl1 = float(c1[1]), float(c1[4])
@@ -67,49 +60,51 @@ def check_setup(symbol):
 
     candle_time = c3[0]
 
-    # ✅ duplicate signal block
+    # ❌ duplicate block
     if symbol in last_signal and last_signal[symbol] == candle_time:
         return
 
-    # 🔥 FIXED LOGIC (Big-Small-Big)
-    big1 = body1 > body2 * 1.5
-    big2 = body3 > body2 * 1.5
-    small = body2 < (body1 + body3) / 2
+    # 🔥 TV MATCH LOGIC (with slight buffer)
+    big1 = body1 > body2 * 1.9
+    big2 = body3 > body2 * 1.9
+    small = body2 < body1 * 0.45
 
-    if big1 and small and big2:
+    bull = cl1 > o1 and cl3 > o3
+    bear = cl1 < o1 and cl3 < o3
 
-        # ✅ relaxed direction (important)
-        if cl3 > o3:
-            direction = "BUY"
-        elif cl3 < o3:
-            direction = "SELL"
-        else:
-            return
+    print(symbol, big1, small, big2)  # DEBUG
 
-        last_signal[symbol] = candle_time
+    if big1 and small and big2 and bull:
+        direction = "BUY"
 
-        entry = cl3
+    elif big1 and small and big2 and bear:
+        direction = "SELL"
 
-        if direction == "BUY":
-            tp = entry * (1 + TP_PERCENT / 100)
-            sl = entry * (1 - SL_PERCENT / 100)
-        else:
-            tp = entry * (1 - TP_PERCENT / 100)
-            sl = entry * (1 + SL_PERCENT / 100)
+    else:
+        return
 
-        active_trades[symbol] = {
-            "direction": direction,
-            "entry": entry,
-            "tp": tp,
-            "sl": sl
-        }
+    last_signal[symbol] = candle_time
 
-        send_message(f"""🚀 SIGNAL
+    entry = cl3
+
+    if direction == "BUY":
+        tp = entry * (1 + TP_PERCENT / 100)
+        sl = entry * (1 - SL_PERCENT / 100)
+    else:
+        tp = entry * (1 - TP_PERCENT / 100)
+        sl = entry * (1 + SL_PERCENT / 100)
+
+    active_trades[symbol] = {
+        "direction": direction,
+        "entry": entry,
+        "tp": tp,
+        "sl": sl
+    }
+
+    send_message(f"""🚀 SIGNAL
 
 Symbol: {symbol}
 Type: {direction}
-Timeframe: 5m
-
 Entry: {entry:.4f}
 TP: {tp:.4f}
 SL: {sl:.4f}
@@ -139,65 +134,42 @@ def check_results():
 
             if price >= trade["tp"]:
                 wins += 1
-                send_message(f"""✅ TP HIT
-
-{symbol}
-
-Wins: {wins}
-Losses: {losses}
-""")
+                send_message(f"✅ TP HIT {symbol}\nWins: {wins} Losses: {losses}")
                 del active_trades[symbol]
 
             elif price <= trade["sl"]:
                 losses += 1
-                send_message(f"""❌ SL HIT
-
-{symbol}
-
-Wins: {wins}
-Losses: {losses}
-""")
+                send_message(f"❌ SL HIT {symbol}\nWins: {wins} Losses: {losses}")
                 del active_trades[symbol]
 
         else:
 
             if price <= trade["tp"]:
                 wins += 1
-                send_message(f"""✅ TP HIT
-
-{symbol}
-
-Wins: {wins}
-Losses: {losses}
-""")
+                send_message(f"✅ TP HIT {symbol}\nWins: {wins} Losses: {losses}")
                 del active_trades[symbol]
 
             elif price >= trade["sl"]:
                 losses += 1
-                send_message(f"""❌ SL HIT
-
-{symbol}
-
-Wins: {wins}
-Losses: {losses}
-""")
+                send_message(f"❌ SL HIT {symbol}\nWins: {wins} Losses: {losses}")
                 del active_trades[symbol]
 
 
-print("🔥 BOT STARTED (FIXED VERSION)")
+print("🔥 FINAL SYNC BOT STARTED")
 
 
 while True:
 
-    print("🔄 BOT LOOP RUNNING")
+    print("🔄 LOOP RUNNING")
 
     for symbol in symbols:
-
-        print(f"Scanning {symbol}")
         check_setup(symbol)
         time.sleep(1)
 
     check_results()
 
-    print("⏳ Waiting next 5m candle")
-    time.sleep(300)  # ✅ FIXED (5 min sync)
+    # 🔥 PERFECT CANDLE SYNC
+    now = time.time()
+    wait = 300 - (now % 300)
+    print(f"⏳ Waiting {int(wait)} sec for next candle")
+    time.sleep(wait + 2)
